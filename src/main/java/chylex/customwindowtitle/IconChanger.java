@@ -12,7 +12,7 @@ import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class IconChanger {
+public final class IconChanger {
 
     public static void setIcon(final Path iconPath) {
         final long windowHandle = Minecraft.getInstance().getWindow().getWindow();

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 public final class TitleConfig {
 	private static final Map<String, String> DEFAULTS;
-	private static TitleConfig instance;
+	private static volatile TitleConfig instance = null;
 
 	static {
 		final Map<String, String> defaults = new LinkedHashMap<>();
@@ -22,50 +22,56 @@ public final class TitleConfig {
 		DEFAULTS = Collections.unmodifiableMap(defaults);
 	}
 
-	public static TitleConfig read(final String folder) {
+	public static TitleConfig getInstance() {
+		return instance;
+	}
+
+	public static TitleConfig load(final String folder) {
+		if (instance != null)
+			throw new IllegalStateException("TitleConfig has already been loaded and cannot be loaded again.");
+
 		if (instance == null) {
-			final Path configFile = Paths.get(folder, "customwindowtitle-client.toml");
-			final Map<String, String> config = new LinkedHashMap<>(DEFAULTS);
+			synchronized (TitleConfig.class) {
+				if (instance == null) {
+					final Path configFile = Paths.get(folder, "customwindowtitle-client.toml");
+					final Map<String, String> config = new LinkedHashMap<>(DEFAULTS);
 
-			try {
-				if (!Files.exists(configFile)) {
-					Files.write(configFile, config.entrySet().stream()
-							.map(entry -> String.format("%s = '%s'", entry.getKey(), entry.getValue()))
-							.collect(Collectors.toList()), StandardCharsets.UTF_8);
-				} else {
-					Files.readAllLines(configFile, StandardCharsets.UTF_8).stream()
-							.map(String::trim)
-							.filter(line -> !line.isEmpty())
-							.forEach(line -> {
-								final String[] split = line.split("=", 2);
+					try {
+						if (!Files.exists(configFile)) {
+							Files.write(configFile, config.entrySet().stream()
+									.map(entry -> String.format("%s = '%s'", entry.getKey(), entry.getValue()))
+									.collect(Collectors.toList()), StandardCharsets.UTF_8);
+						} else {
+							Files.readAllLines(configFile, StandardCharsets.UTF_8).stream()
+									.map(String::trim)
+									.filter(line -> !line.isEmpty())
+									.forEach(line -> {
+										final String[] split = line.split("=", 2);
+										if (split.length != 2) {
+											throw new RuntimeException("CustomWindowTitle configuration has an invalid line: " + line);
+										}
+										final String key = split[0].trim();
+										final String value = parseTrimmedValue(split[1].trim());
+										if (config.containsKey(key)) {
+											config.put(key, value);
+										} else {
+											throw new RuntimeException("CustomWindowTitle configuration has an invalid key: " + key);
+										}
+									});
+						}
+					} catch (final IOException e) {
+						throw new RuntimeException("CustomWindowTitle configuration error", e);
+					}
 
-								if (split.length != 2) {
-									throw new RuntimeException("CustomWindowTitle configuration has an invalid line: " + line);
-								}
+					final String iconPath = config.get("squareIcon");
+					final Path pathIcon = iconPath.isEmpty() ? null : Paths.get(folder, iconPath);
+					if (pathIcon != null && Files.notExists(pathIcon)) {
+						throw new RuntimeException("CustomWindowTitle icon not found: " + pathIcon);
+					}
 
-								final String key = split[0].trim();
-								final String value = parseTrimmedValue(split[1].trim());
-
-								if (config.containsKey(key)) {
-									config.put(key, value);
-								} else {
-									throw new RuntimeException("CustomWindowTitle configuration has an invalid key: " + key);
-								}
-							});
+					instance = new TitleConfig(config.get("title"), pathIcon);
 				}
-			} catch (final IOException e) {
-				throw new RuntimeException("CustomWindowTitle configuration error", e);
 			}
-
-			final String iconPath = config.get("squareIcon");
-
-			final Path pathIcon = iconPath.isEmpty() ? null : Paths.get(folder, iconPath);
-
-			if (pathIcon != null && Files.notExists(pathIcon)) {
-				throw new RuntimeException("CustomWindowTitle icon not found: " + pathIcon);
-			}
-
-			instance = new TitleConfig(config.get("title"), pathIcon);
 		}
 		return instance;
 	}
@@ -97,9 +103,7 @@ public final class TitleConfig {
 		this.icon = icon;
 	}
 
-	public static TitleConfig getInstance() {
-		return instance;
-	}
+
 
 	public String getTitle() {
 		return title;

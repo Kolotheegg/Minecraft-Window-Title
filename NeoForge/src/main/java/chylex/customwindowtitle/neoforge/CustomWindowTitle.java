@@ -15,8 +15,8 @@ public class CustomWindowTitle {
 	
 	private final TitleConfig config;
 	
-	public CustomWindowTitle(IEventBus eventBus) {
-		config = TitleConfig.read(FMLPaths.CONFIGDIR.get().toString());
+	public CustomWindowTitle(final IEventBus eventBus) {
+		config = TitleConfig.load(FMLPaths.CONFIGDIR.get().toString());
 		eventBus.addListener(this::onClientSetup);
 		CommonTokenData.register(new TokenProvider());
 	}

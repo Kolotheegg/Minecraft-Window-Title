@@ -9,10 +9,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Minecraft.class)
-public final class DisableVanillaTitle {
-
-	@Inject(method = "updateTitle()V", at = @At("HEAD"), cancellable = true)
-	private void updateTitle(final CallbackInfo info) {
-		info.cancel();
-	}
+public final class InitializeCustomIcon {
+    @Inject(method = "onResourceLoadFinished", at = @At("HEAD"))
+    private void onFinishedLoading(final CallbackInfo callbackInfo) {
+        final TitleConfig config = TitleConfig.getInstance();
+        if (config != null && config.hasIcon()) {
+            IconChanger.setIcon(config.getIconPath());
+        }
+    }
 }
